@@ -14,6 +14,8 @@ import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
+
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,13 +30,14 @@ public class SmsOtpAutofill extends CordovaPlugin {
     private String delimiter;
     private int timeout;
     private int otpLength;
-    private static String BroadcastAction = "android.provider.Telephony.SMS_RECEIVED";
+    private boolean validateSender;
+    private static final String BroadcastAction = "android.provider.Telephony.SMS_RECEIVED";
     private CallbackContext otpCallbackContext;
 
 
     @Override
-    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
-        super.onRequestPermissionResult(requestCode, permissions, grantResults);
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if(grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startCountDownTimer();
         } else if(grantResults[0] == PackageManager.PERMISSION_DENIED) {
@@ -52,6 +55,7 @@ public class SmsOtpAutofill extends CordovaPlugin {
                 delimiter = options.getJSONObject(0).getString("delimiter");
                 otpLength = options.getJSONObject(0).getInt("otpLength");
                 timeout = options.getJSONObject(0).getInt("timeout");
+                validateSender = options.getJSONObject(0).getBoolean("validateSender");
 
                 if(!delimiter.isEmpty()) {
                     delimiter += " ";
@@ -84,7 +88,7 @@ public class SmsOtpAutofill extends CordovaPlugin {
     private void startCountDownTimer() {
 
         registerReceiver();
-        countDownTimer = new CountDownTimer(timeout*1000, 1000) {
+        countDownTimer = new CountDownTimer(timeout* 1000L, 1000) {
             @Override
             public void onTick(long l) {
 
@@ -113,7 +117,7 @@ public class SmsOtpAutofill extends CordovaPlugin {
         cordova.getActivity().getApplicationContext().unregisterReceiver(broadcastReceiver);
     }
 
-    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             final Bundle bundle = intent.getExtras();
@@ -123,12 +127,12 @@ public class SmsOtpAutofill extends CordovaPlugin {
                 {
 
                     final Object[] pdusObj = (Object[]) bundle.get("pdus");
-                    for (int i = 0; i < pdusObj.length; i++)
+                    for (int i = 0; i < Objects.requireNonNull(pdusObj).length; i++)
                     {
 
                         SmsMessage currentMessage = SmsMessage.createFromPdu((byte[]) pdusObj[i]);
                         String message = currentMessage .getDisplayMessageBody();
-                        String senderIDInSms = currentMessage.getDisplayOriginatingAddress().substring(3);
+                        String senderIDInSms = currentMessage.getDisplayOriginatingAddress();
                         Pattern pattern = Pattern.compile(delimiter + "(\\d{" +otpLength+ "})");
                         Matcher m = pattern.matcher(message);
 
@@ -149,7 +153,7 @@ public class SmsOtpAutofill extends CordovaPlugin {
 
     private void updateOTP(String senderIDInSms) {
 
-        if(senderID.equals(senderIDInSms)) {
+        if(!validateSender || senderID.equals(senderIDInSms)) {
             countDownTimer.cancel();
             unregisterReceiver();
             updateCallbackStatus(otpCallbackContext,OTP);

@@ -27,7 +27,8 @@ cordova plugin add cordova-plugin-otp-autofill
 		otpLength: 4,
 		delimiter: 'is',
 		senderID: 'WAYSMS',
-		timeout: 60
+		timeout: 60,
+		validateSender: true
 	    }
 
 	smsOtpAutofill.startOTPListener(successCallback,errorCallback,options);
@@ -47,7 +48,8 @@ cordova plugin add cordova-plugin-otp-autofill
 		otpLength: 4,
 		delimiter: 'is',
 		senderID: 'WAYSMS',
-		timeout: 60
+		timeout: 60,
+		validateSender: true
 	    }
 	    
 	function successCallback(result) {
@@ -90,6 +92,8 @@ Parameters to customize the retrieval of the OTP.
 - __senderID__: This is the 6-character sender ID of the received SMS. For example, if the sender name of the received SMS is 'QP-WAYSMS' , then the senderID should be set to 'WAYSMS'. Incase if the message is sent without a SMS service provider, senderID should be set to the 10-digit mobile number of the sender. _(String)_
 
 - __timeout__: This is time (in seconds) until which the plugin listens for the SMS. For example, if the timeout is set to 60, then the plugin waits for 60 seconds to receive the SMS and extract the OTP. If the SMS is not received in 60 seconds, then the plugin returns a 'Resend OTP' message. _(Number)_
+
+- __validateSender__: This is the flag used to know if the __senderID__ should be validated. Set to false if no validation is needed. _(Boolean)_
 
 
 
