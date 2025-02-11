@@ -36,8 +36,8 @@ public class SmsOtpAutofill extends CordovaPlugin {
 
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
+        super.onRequestPermissionResult(requestCode, permissions, grantResults);
         if(grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startCountDownTimer();
         } else if(grantResults[0] == PackageManager.PERMISSION_DENIED) {
