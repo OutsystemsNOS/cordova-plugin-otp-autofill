@@ -45,7 +45,6 @@ var options = {
 	otpLength: 4,
 	delimiter: 'is',
 	senderID: 'WAYSMS',
-	timeout: 60,
 	validateSender: true
 }
 	
@@ -73,11 +72,11 @@ Parameters to customize the retrieval of the OTP.
 
 ### Options
 
-- __delimiter__: This is the text which appears just before the OTP in the SMS content. For example, if the SMS content is 'Your OTP is 6367' , then delimiter should be set to 'is'. The delimiter can also be set with an empty value , incase if the SMS content starts with the OTP. For example, if the SMS content is '6367 is your one time password', then the delimiter should be set to ' '. _(String)_
+- __delimiter__: This text appears just before the OTP in the SMS content. For example, if the SMS content is 'Your verification code is 6367', the delimiter should be set to 'is'. _(String)_
 
-- __length__: This is the length of the OTP to be extracted from the SMS. For example, if the SMS content is 'Your OTP is 6367', the length should be set to 4. _(Number)_
+- __length__: This is the length of the OTP extracted from the SMS. For example, if the SMS content is 'Your OTP is 6367', the length should be set to 4. _(Number)_
 
-- __senderID__: This is the 6-character sender ID of the received SMS. For example, if the sender name of the received SMS is 'QP-WAYSMS' , then the senderID should be set to 'WAYSMS'. Incase if the message is sent without a SMS service provider, senderID should be set to the 10-digit mobile number of the sender. _(String)_
+- __senderID__: This is the sender ID  of the received SMS. For example, if the sender name of the received SMS is 'QP-WAYSMS', then the senderID should be set to 'QP-WAYSMS'. In case the message is sent without an SMS service provider, senderID should be set to the phone number, including the country code of the sender. _(String)_
 
 - __validateSender__: This is the flag used to know if the __senderID__ should be validated. Set to false if no validation is needed. _(Boolean)_
 
