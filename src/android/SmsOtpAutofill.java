@@ -1,170 +1,145 @@
 package org.apache.cordova.smsotpautofill;
 
-import android.Manifest;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.CountDownTimer;
-import android.telephony.SmsMessage;
+import android.util.Log;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
+
+import com.google.android.gms.auth.api.phone.SmsRetriever;
+import com.google.android.gms.common.api.CommonStatusCodes;
+import com.google.android.gms.common.api.Status;
+
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
 public class SmsOtpAutofill extends CordovaPlugin {
 
-
-    public static final String[] permissions = {Manifest.permission.RECEIVE_SMS,Manifest.permission.READ_SMS};
-    private static final int REQ_CODE = 0;
-    private CountDownTimer countDownTimer;
-    private String OTP = "";
     private String senderID;
     private String delimiter;
-    private int timeout;
     private int otpLength;
     private boolean validateSender;
-    private static final String BroadcastAction = "android.provider.Telephony.SMS_RECEIVED";
-    private CallbackContext otpCallbackContext;
-
-
-    @Override
-    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
-        super.onRequestPermissionResult(requestCode, permissions, grantResults);
-        if(grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startCountDownTimer();
-        } else if(grantResults[0] == PackageManager.PERMISSION_DENIED) {
-            otpCallbackContext.error("SMS permissions have been denied; please enable it in the Settings app to continue.");
-        }
-    }
+    private CallbackContext callbackContext;
+    private static final String TAG = "SmsOptAutofillUserConsent";
 
     @Override
     public boolean execute(String action, JSONArray options, CallbackContext callbackContext){
-        if(action.equals("extractOtp")){
+        this.callbackContext = callbackContext;
 
-            otpCallbackContext = callbackContext;
+        if (action.equals("startSmsUserConsent")) {
             try {
                 senderID = options.getJSONObject(0).getString("senderID");
                 delimiter = options.getJSONObject(0).getString("delimiter");
                 otpLength = options.getJSONObject(0).getInt("otpLength");
-                timeout = options.getJSONObject(0).getInt("timeout");
                 validateSender = options.getJSONObject(0).getBoolean("validateSender");
 
-                if(!delimiter.isEmpty()) {
-                    delimiter += " ";
-                }
-
-                checkPermissions();
-                PluginResult pluginResult = new PluginResult(PluginResult.Status.NO_RESULT);
-                pluginResult.setKeepCallback(true);
-                callbackContext.sendPluginResult(pluginResult);
-                return true;
-
+                startSmsUserConsent();
             } catch (JSONException e){
                 e.printStackTrace();
-                otpCallbackContext.error("Please enter all of the required options");
+                callbackContext.error("Please enter all of the required options");
             }
-
+            return true;
         }
         return false;
     }
-    private void checkPermissions() {
 
-        if(cordova.hasPermission(permissions[0]) && cordova.hasPermission(permissions[1])) {
-            startCountDownTimer();
-        } else {
-            cordova.requestPermissions(this,REQ_CODE,permissions);
+    private String parseOneTimeCode(String message){
+        Pattern pattern = Pattern.compile("(?i)" + delimiter + "\\s?(\\d{" +otpLength+ "})");
+        Matcher m = pattern.matcher(message);
+
+        String otp = "";
+        if(m.find()) {
+            otp = m.group(1);
         }
 
-
-    }
-    private void startCountDownTimer() {
-
-        registerReceiver();
-        countDownTimer = new CountDownTimer(timeout* 1000L, 1000) {
-            @Override
-            public void onTick(long l) {
-
-            }
-
-            @Override
-            public void onFinish() {
-                unregisterReceiver();
-                updateCallbackStatus(otpCallbackContext,"Resend OTP");
-            }
-        };
-
-        countDownTimer.start();
-
+        return otp;
     }
 
-    private void registerReceiver() {
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(BroadcastAction);
-        cordova.getActivity().getApplicationContext().registerReceiver(broadcastReceiver,intentFilter);
-    }
-
-    private void unregisterReceiver() {
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(BroadcastAction);
-        cordova.getActivity().getApplicationContext().unregisterReceiver(broadcastReceiver);
-    }
-
-    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final Bundle bundle = intent.getExtras();
-            try
-            {
-                if (bundle != null)
-                {
-
-                    final Object[] pdusObj = (Object[]) bundle.get("pdus");
-                    for (int i = 0; i < Objects.requireNonNull(pdusObj).length; i++)
-                    {
-
-                        SmsMessage currentMessage = SmsMessage.createFromPdu((byte[]) pdusObj[i]);
-                        String message = currentMessage .getDisplayMessageBody();
-                        String senderIDInSms = currentMessage.getDisplayOriginatingAddress();
-                        Pattern pattern = Pattern.compile(delimiter + "(\\d{" +otpLength+ "})");
-                        Matcher m = pattern.matcher(message);
-
-                        if(m.find()) {
-                            OTP = m.group(1);
-                        }
-                        updateOTP(senderIDInSms);
-                    }
-
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-        }
-    };
-
-    private void updateOTP(String senderIDInSms) {
-
-        if(!validateSender || senderID.equals(senderIDInSms)) {
-            countDownTimer.cancel();
-            unregisterReceiver();
-            updateCallbackStatus(otpCallbackContext,OTP);
-        }
-
-    }
-
-    private void updateCallbackStatus(CallbackContext callbackContext, String result) {
+    private void updateCallbackStatus(String result) {
 
         PluginResult pluginResult = new PluginResult(PluginResult.Status.OK,result);
         pluginResult.setKeepCallback(false);
         callbackContext.sendPluginResult(pluginResult);
+    }
+
+    private void startSmsUserConsent() {
+        cordova.setActivityResultCallback(this); // Important to get onActivityResult in the plugin!
+
+        SmsRetriever.getClient(cordova.getContext()).startSmsUserConsent(this.validateSender && !this.senderID.isEmpty()? this.senderID: null)
+                .addOnSuccessListener(aVoid -> {
+                    IntentFilter intentFilter = new IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION);
+                    ContextCompat.registerReceiver(cordova.getActivity(), smsVerificationReceiver, intentFilter, ContextCompat.RECEIVER_EXPORTED);
+                })
+                .addOnFailureListener(e -> {
+                    Log.i(TAG, "Failed to start SMS User Consent", e);
+                    callbackContext.error("Failed to start SMS User Consent");
+                });
+    }
+
+    private final BroadcastReceiver smsVerificationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (SmsRetriever.SMS_RETRIEVED_ACTION.equals(intent.getAction())) {
+                Bundle extras = intent.getExtras();
+                Status smsRetrieverStatus = (Status) extras.get(SmsRetriever.EXTRA_STATUS);
+
+                switch (smsRetrieverStatus.getStatusCode()) {
+                    case CommonStatusCodes.SUCCESS:
+                        // Get consent intent
+                        Intent consentIntent = extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT);
+                        try {
+                            // Start activity to show consent dialog to user, activity must be started in
+                            // 5 minutes, otherwise you'll receive another TIMEOUT intent
+
+                            //cordova.getActivity().startActivityForResult(consentIntent, SMS_CONSENT_REQUEST);
+                            //startActivityForResult replaced with the below to avoid using deprecated methods
+                            ActivityResultLauncher<Intent> smsConsentLauncher = cordova.getActivity().registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+                                    result -> {
+                                        if (result.getResultCode() == android.app.Activity.RESULT_OK && result.getData() != null) {
+                                            // Get SMS message content
+                                            String message = result.getData().getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
+                                            // Extract one-time code from the message and complete verification
+                                            // `message` contains the entire text of the SMS message, so we need
+                                            // to parse the string.
+                                            String oneTimeCode = parseOneTimeCode(message);
+
+                                            // send otp to cordova
+                                            updateCallbackStatus(oneTimeCode);
+                                            Log.i(TAG, "OTP Received: " + message);
+                                        } else {
+                                            callbackContext.error("User denied consent");
+                                        }
+                                    });
+                            smsConsentLauncher.launch(consentIntent);
+                        } catch (ActivityNotFoundException e) {
+                            callbackContext.error(e.getMessage());
+                        }
+                        break;
+                    case CommonStatusCodes.TIMEOUT:
+                        // Time out occurred, handle the error.
+                        callbackContext.error("Timeout");
+                        break;
+                }
+            }
+        }
+    };
+
+    @Override
+    public void onDestroy() {
+        cordova.getActivity().unregisterReceiver(smsVerificationReceiver);
+        super.onDestroy();
     }
 }

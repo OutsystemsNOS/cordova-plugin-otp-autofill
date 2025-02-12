@@ -4,7 +4,7 @@
 ### Description
 
 This plugin extracts the OTP of required length from the received SMS.
-
+It uses the  [Request one-time consent to read an SMS verification code](https://developers.google.com/identity/sms-retriever/user-consent/request), making it compatible with Android 15.
 
 
 ### Installation
@@ -18,20 +18,17 @@ cordova plugin add cordova-plugin-otp-autofill
 
 - Android
 
-
-
 ### Usage
 
 ```
-	var options = {
-		otpLength: 4,
-		delimiter: 'is',
-		senderID: 'WAYSMS',
-		timeout: 60,
-		validateSender: true
-	    }
+var options = {
+	otpLength: 4,
+	delimiter: 'is',
+	senderID: 'WAYSMS',
+	validateSender: true
+}
 
-	smsOtpAutofill.startOTPListener(successCallback,errorCallback,options);
+smsOtpAutofill.startOTPListener(successCallback,errorCallback,options);
 ```
 
 ### Function Parameters
@@ -44,34 +41,25 @@ cordova plugin add cordova-plugin-otp-autofill
 ### Example
 
 ```	
-	var options = {
-		otpLength: 4,
-		delimiter: 'is',
-		senderID: 'WAYSMS',
-		timeout: 60,
-		validateSender: true
-	    }
-	    
-	function successCallback(result) {
-
-	  if(result === 'Resend OTP') {
-
-		  smsOtpAutofill.startOTPListener(successCallback,errorCallback,options);
-
-	  } else {
-	  
-	  	//Set the result (OTP value) to the field
-		
-	  }
-
-	}
-
-
-	function errorCallback(message) {
-
-	}
+var options = {
+	otpLength: 4,
+	delimiter: 'is',
+	senderID: 'WAYSMS',
+	timeout: 60,
+	validateSender: true
+}
 	
-	smsOtpAutofill.startOTPListener(successCallback,errorCallback,options);
+function successCallback(result) {
+	//Set the result (OTP value) to the field
+	console.log(result);
+}
+
+
+function errorCallback(message) {
+	console.log(message);
+}
+
+smsOtpAutofill.startOTPListener(successCallback,errorCallback,options);
 
 ```
 
@@ -80,7 +68,7 @@ cordova plugin add cordova-plugin-otp-autofill
 
 Parameters to customize the retrieval of the OTP.
 
-     { otpLength: 4, delimiter: 'is', senderID: 'WAYSMS', timeout: 60}
+     { otpLength: 4, delimiter: 'is', senderID: 'WAYSMS'}
      
 
 ### Options
@@ -90,8 +78,6 @@ Parameters to customize the retrieval of the OTP.
 - __length__: This is the length of the OTP to be extracted from the SMS. For example, if the SMS content is 'Your OTP is 6367', the length should be set to 4. _(Number)_
 
 - __senderID__: This is the 6-character sender ID of the received SMS. For example, if the sender name of the received SMS is 'QP-WAYSMS' , then the senderID should be set to 'WAYSMS'. Incase if the message is sent without a SMS service provider, senderID should be set to the 10-digit mobile number of the sender. _(String)_
-
-- __timeout__: This is time (in seconds) until which the plugin listens for the SMS. For example, if the timeout is set to 60, then the plugin waits for 60 seconds to receive the SMS and extract the OTP. If the SMS is not received in 60 seconds, then the plugin returns a 'Resend OTP' message. _(Number)_
 
 - __validateSender__: This is the flag used to know if the __senderID__ should be validated. Set to false if no validation is needed. _(Boolean)_
 
