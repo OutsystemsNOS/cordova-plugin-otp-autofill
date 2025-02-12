@@ -18,13 +18,7 @@
     <js-module src="www/smsOtpAutofill.js" name="smsOtpAutofillPlugin">
         <clobbers target="smsOtpAutofill" />
     </js-module>
-    <platform name="android">
-		
-		<config-file target="AndroidManifest.xml" parent="/*">
-			<uses-permission android:name="android.permission.RECEIVE_SMS" />
-            		<uses-permission android:name="android.permission.READ_SMS" />
-		</config-file>
-        
+    <platform name="android">        
 		<config-file target="res/xml/config.xml" parent="/*">
             <feature name="SmsOtpAutofill">
                 <param name="android-package" value="org.apache.cordova.smsotpautofill.SmsOtpAutofill"/>
