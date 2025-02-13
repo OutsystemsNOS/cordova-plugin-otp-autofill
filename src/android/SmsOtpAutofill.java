@@ -34,6 +34,13 @@ public class SmsOtpAutofill extends CordovaPlugin {
     private boolean validateSender;
     private CallbackContext callbackContext;
     private static final String TAG = "SmsOptAutofillUserConsent";
+    ActivityResultLauncher<Intent> smsConsentLauncher;
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        createSmsConsentLauncher();
+    }
 
     @Override
     public boolean execute(String action, JSONArray options, CallbackContext callbackContext){
@@ -76,8 +83,6 @@ public class SmsOtpAutofill extends CordovaPlugin {
     }
 
     private void startSmsUserConsent() {
-        cordova.setActivityResultCallback(this); // Important to get onActivityResult in the plugin!
-
         SmsRetriever.getClient(cordova.getContext()).startSmsUserConsent(this.validateSender && !this.senderID.isEmpty()? this.senderID: null)
                 .addOnSuccessListener(aVoid -> {
                     IntentFilter intentFilter = new IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION);
@@ -86,6 +91,32 @@ public class SmsOtpAutofill extends CordovaPlugin {
                 .addOnFailureListener(e -> {
                     Log.i(TAG, "Failed to start SMS User Consent", e);
                     callbackContext.error("Failed to start SMS User Consent");
+                });
+    }
+
+    /**
+     * Start activity to show consent dialog to user, activity must be started in
+     * 5 minutes, otherwise you'll receive another TIMEOUT intent
+     */
+    private void createSmsConsentLauncher(){
+        //cordova.getActivity().startActivityForResult(consentIntent, SMS_CONSENT_REQUEST);
+        //startActivityForResult replaced with the below to avoid using deprecated methods
+        smsConsentLauncher = cordova.getActivity().registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == android.app.Activity.RESULT_OK && result.getData() != null) {
+                        // Get SMS message content
+                        String message = result.getData().getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
+                        // Extract one-time code from the message and complete verification
+                        // `message` contains the entire text of the SMS message, so we need
+                        // to parse the string.
+                        String oneTimeCode = parseOneTimeCode(message);
+
+                        // send otp to cordova
+                        updateCallbackStatus(oneTimeCode);
+                        Log.i(TAG, "OTP Received: " + message);
+                    } else {
+                        callbackContext.error("User denied consent");
+                    }
                 });
     }
 
@@ -101,28 +132,6 @@ public class SmsOtpAutofill extends CordovaPlugin {
                         // Get consent intent
                         Intent consentIntent = extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT);
                         try {
-                            // Start activity to show consent dialog to user, activity must be started in
-                            // 5 minutes, otherwise you'll receive another TIMEOUT intent
-
-                            //cordova.getActivity().startActivityForResult(consentIntent, SMS_CONSENT_REQUEST);
-                            //startActivityForResult replaced with the below to avoid using deprecated methods
-                            ActivityResultLauncher<Intent> smsConsentLauncher = cordova.getActivity().registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
-                                    result -> {
-                                        if (result.getResultCode() == android.app.Activity.RESULT_OK && result.getData() != null) {
-                                            // Get SMS message content
-                                            String message = result.getData().getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
-                                            // Extract one-time code from the message and complete verification
-                                            // `message` contains the entire text of the SMS message, so we need
-                                            // to parse the string.
-                                            String oneTimeCode = parseOneTimeCode(message);
-
-                                            // send otp to cordova
-                                            updateCallbackStatus(oneTimeCode);
-                                            Log.i(TAG, "OTP Received: " + message);
-                                        } else {
-                                            callbackContext.error("User denied consent");
-                                        }
-                                    });
                             smsConsentLauncher.launch(consentIntent);
                         } catch (ActivityNotFoundException e) {
                             callbackContext.error(e.getMessage());
