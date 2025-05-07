@@ -148,7 +148,11 @@ public class SmsOtpAutofill extends CordovaPlugin {
 
     @Override
     public void onDestroy() {
-        cordova.getActivity().unregisterReceiver(smsVerificationReceiver);
-        super.onDestroy();
+        try {
+            cordova.getActivity().unregisterReceiver(smsVerificationReceiver);
+        } catch (IllegalArgumentException e) {
+            Log.i(TAG, "Receiver not registered or already unregistered", e);
+        }
+    super.onDestroy();
     }
 }
